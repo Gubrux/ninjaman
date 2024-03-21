@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>ninjaman</title>
+        <style type="text/css">
+            * {
+                margin: 0;
+                padding: 0;
+            }
+            .row {
+                line-height: 0;
+            }
+            .wall {
+                background-color: blue;
+                height: 40px;
+                width: 40px;
+                display: inline-block;
+            }
+            .sushi {
+                background-color: black;
+                height: 40px;
+                width: 40px;
+                display: inline-block;
+                background-image: url("sushi.png");
+                background-size: cover;
+            }
+            .onigiri {
+                background-color: black;
+                height: 40px;
+                width: 40px;
+                display: inline-block;
+                background-image: url("onigiri.png");
+                background-size: cover;
+            }
+            .blank {
+                background-color: black;
+                height: 40px;
+                width: 40px;
+                display: inline-block;
+            }
+            .pinky {
+                background-image: url("pinky.gif");
+                background-color: black;
+                height: 40px;
+                width: 40px;
+                display: inline-block;
+                position: absolute;
+                background-size: cover;
+            }
+            .pumpky {
+                background-image: url("pumpky.gif");
+                background-color: black;
+                height: 40px;
+                width: 40px;
+                display: inline-block;
+                position: absolute;
+                background-size: cover;
+            }
+            .red {
+                background-image: url("red.gif");
+                /* background-color: black; */
+                height: 40px;
+                width: 40px;
+                display: inline-block;
+                position: absolute;
+                background-size: cover;
+            }
+            .bluey {
+                background-image: url("bluey.gif");
+                background-color: black;
+                height: 40px;
+                width: 40px;
+                display: inline-block;
+                position: absolute;
+                background-size: cover;
+            }
+            .scaredy {
+                background-image: url("scaredy.png");
+                height: 40px;
+                width: 40px;
+                display: inline-block;
+                position: absolute;
+                background-size: cover;
+            }
+            #ninjaman {
+                background-color: darkgrey;
+                height: 40px;
+                width: 40px;
+                display: inline-block;
+                background-image: url("ninja.gif");
+                background-size: contain;
+                position: absolute;
+                left: 40px;
+                top: 40px;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="world"></div>
+        <div id="ninjaman"></div>
+        <div id="score"></div>
+    </body>
+    <script type="text/javascript">
+        // Generación del mundo
+        function generateWorld() {
+            var world = [];
+            var width = 14;
+            var height = 14;
+
+            // Inicializar el mundo con paredes
+            for (var y = 0; y < height; y++) {
+                world[y] = [];
+                for (var x = 0; x < width; x++) {
+                    world[y][x] = 1;
+                }
+            }
+
+            // Comenzar desde un punto aleatorio
+            var startX = Math.floor(Math.random() * (width - 2)) + 1;
+            var startY = Math.floor(Math.random() * (height - 2)) + 1;
+            world[startY][startX] = 0;
+
+            var frontier = [[startX, startY]];
+
+            while (frontier.length > 0) {
+                var randomIndex = Math.floor(Math.random() * frontier.length);
+                var [x, y] = frontier.splice(randomIndex, 1)[0];
+
+                var neighbors = [
+                    [x - 2, y],
+                    [x + 2, y],
+                    [x, y - 2],
+                    [x, y + 2],
+                ];
+
+                for (var i = 0; i < neighbors.length; i++) {
+                    var [nx, ny] = neighbors[i];
+
+                    if (
+                        nx >= 1 &&
+                        nx < width - 1 &&
+                        ny >= 1 &&
+                        ny < height - 1 &&
+                        world[ny][nx] === 1
+                    ) {
+                        var dx = nx - x;
+                        var dy = ny - y;
+
+                        if (world[y + dy / 2][x + dx / 2] === 1) {
+                            world[ny][nx] = 0;
+                            world[y + dy / 2][x + dx / 2] = 0;
+                            frontier.push([nx, ny]);
+                        }
+                    }
+                }
+            }
+            for (var y = 0; y < height; y++) {
+                for (var x = 0; x < width; x++) {
+                    if (world[y][x] === 0) {
+                        if (Math.random() < 0.1) {
+                            world[y][x] = 2; // 10% de probabilidad de convertirse en sushi
+                        } else if (Math.random() < 0.1) {
+                            world[y][x] = 3; // 10% de probabilidad de convertirse en onigiri
+                        }
+                    }
+                }
+            }
+            return world;
+        }
+
+        var world = generateWorld();
+        // preparamos nuestro diccionario de elementos que tendra nuestro mundo
+        var worldDict = {
+            0: "blank",
+            1: "wall",
+            2: "sushi",
+            3: "onigiri",
+            4: "ghost",
+        };
+        // creamos una lista vacia para guardar las posiciones que no estan ocupadas en el mundo generado
+        var emptySpaces = [];
+        for (var y = 0; y < world.length; y++) {
+            for (var x = 0; x < world[y].length; x++) {
+                if (world[y][x] === 0) {
+                    emptySpaces.push({ x: x, y: y });
+                }
+            }
+        }
+
+        var randomIndex = Math.floor(Math.random() * emptySpaces.length);
+        var startPosition = emptySpaces[randomIndex];
+
+        // creamos a nuestro ninjaman con las propiedades de posicion de inicio, puntaje, vidas y si tiene el power up del onigiri
+        var ninjaman = {
+            x: startPosition.x,
+            y: startPosition.y,
+            score: 0,
+            lives: 3,
+            power: false,
+        };
+        // creamos los 4 fantasmas con posiciones random y le damos el estado de vivo
+        var ghosts = [
+            {
+                x: Math.floor(Math.random() * 8),
+                y: Math.floor(Math.random() * 5),
+                type: "pinky",
+                originalType: "pinky",
+                alive: true,
+            },
+            {
+                x: Math.floor(Math.random() * 8),
+                y: Math.floor(Math.random() * 5),
+                type: "pumpky",
+                originalType: "pumpky",
+                alive: true,
+            },
+            {
+                x: Math.floor(Math.random() * 8),
+                y: Math.floor(Math.random() * 5),
+                type: "red",
+                originalType: "red",
+                alive: true,
+            },
+            {
+                x: Math.floor(Math.random() * 8),
+                y: Math.floor(Math.random() * 5),
+                type: "bluey",
+                originalType: "bluey",
+                alive: true,
+            },
+        ];
+
+        // Dibujar fantasmas
+        function drawGhosts() {
+            for (var i = 0; i < ghosts.length; i++) {
+                if (!ghosts[i].alive) continue; // Saltar este fantasma si no está vivo
+                var ghostDiv = document.getElementById("ghost" + i);
+                if (!ghostDiv) {
+                    ghostDiv = document.createElement("div");
+                    ghostDiv.id = "ghost" + i; // Asignar un ID único al fantasma
+                    document.getElementById("world").appendChild(ghostDiv);
+                }
+                ghostDiv.className = ghosts[i].type;
+                ghostDiv.style.left = ghosts[i].x * 40 + "px";
+                ghostDiv.style.top = ghosts[i].y * 40 + "px";
+            }
+        }
+        var moveCounter = 0;
+
+        // Mover fantasmas
+        function moveGhosts() {
+            moveCounter++;
+
+            for (var i = 0; i < ghosts.length; i++) {
+                if (!ghosts[i].alive) continue; // Saltar este fantasma si no está vivo
+
+                var dx = ninjaman.x - ghosts[i].x;
+                var dy = ninjaman.y - ghosts[i].y;
+                var newX = ghosts[i].x;
+                var newY = ghosts[i].y;
+
+                if (ninjaman.power) {
+                    // Cuando Ninjaman tiene el poder, los fantasmas deben alejarse de él
+                    // Pero solo se mueven una vez cada dos llamadas a moveGhosts()
+                    if (moveCounter % 2 === 0) {
+                        if (Math.abs(dx) > Math.abs(dy)) {
+                            newX -= Math.sign(dx);
+                        } else {
+                            newY -= Math.sign(dy);
+                        }
+                    }
+                } else {
+                    // Cuando Ninjaman no tiene el poder, los fantasmas deben moverse hacia él
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        newX += Math.sign(dx);
+                    } else {
+                        newY += Math.sign(dy);
+                    }
+                }
+
+                // Verificar si la nueva posición está dentro de los límites del mundo
+                if (
+                    newX >= 0 &&
+                    newX < world[0].length &&
+                    newY >= 0 &&
+                    newY < world.length
+                ) {
+                    ghosts[i].x = newX;
+                    ghosts[i].y = newY;
+                }
+
+                // Verificar si un fantasma está en la misma posición que NinjaMan
+                if (ghosts[i].x === ninjaman.x && ghosts[i].y === ninjaman.y) {
+                    colicionDelFantasma(i);
+                }
+            }
+        }
+
+        // Manejar la colisión con un fantasma
+        function colicionDelFantasma(i) {
+            if (ninjaman.power) {
+                ninjaman.score += 15; // NinjaMan obtiene 15 puntos por comer un fantasma
+                ghosts[i].alive = false; // El fantasma ahora está "muerto"
+
+                // Eliminar el fantasma del DOM
+                var ghostDiv = document.getElementById("ghost" + i);
+                ghostDiv.parentNode.removeChild(ghostDiv);
+            } else {
+                ninjaman.lives--; // NinjaMan pierde una vida
+                ninjaman.score = Math.max(0, ninjaman.score - 1); // NinjaMan pierde un punto, pero la puntuación no puede bajar de 0
+                ghosts[i].alive = false; // El fantasma ahora está "muerto"
+
+                // Eliminar el fantasma del DOM
+                var ghostDiv = document.getElementById("ghost" + i);
+                ghostDiv.parentNode.removeChild(ghostDiv);
+
+                // Si las vidas de Ninjaman son 0, terminar el juego
+                if (ninjaman.lives === 0 || ninjaman.lives < 1) {
+                    alert("Perdiste! tu puntaje fue: " + ninjaman.score);
+                    location.reload(); // Recargar la página
+                }
+            }
+        }
+
+        // Dibujar el mundo
+        function drawWorld() {
+            output = "";
+            for (var row = 0; row < world.length; row++) {
+                output += "<div class='row'>";
+                for (var x = 0; x < world[row].length; x++) {
+                    output +=
+                        "<div class='" + worldDict[world[row][x]] + "'></div>";
+                }
+                output += "</div>";
+            }
+            document.getElementById("world").innerHTML = output;
+            document.getElementById("ninjaman").style.left =
+                ninjaman.x * 40 + "px";
+            document.getElementById("ninjaman").style.top =
+                ninjaman.y * 40 + "px";
+            document.getElementById("score").innerHTML =
+                "Puntos: " + ninjaman.score + " Vidas: " + ninjaman.lives;
+            drawGhosts();
+        }
+        function checkWin() {
+            var remainingFood = 0;
+
+            for (var y = 0; y < world.length; y++) {
+                for (var x = 0; x < world[y].length; x++) {
+                    if (world[y][x] === 2 || world[y][x] === 3) {
+                        remainingFood++;
+                    }
+                }
+            }
+            if (remainingFood === 0) {
+                alert(
+                    "¡Ganaste! Tu puntaje fue: " + ninjaman.score + " puntos"
+                );
+                location.reload(); // Recargar la página
+            }
+        }
+        // Mover a Ninjaman
+        function moveNinjaman(direction) {
+            var newX = ninjaman.x;
+            var newY = ninjaman.y;
+
+            if (direction === "up") newY--;
+            else if (direction === "down") newY++;
+            else if (direction === "left") newX--;
+            else if (direction === "right") newX++;
+
+            if (world[newY][newX] !== 1) {
+                ninjaman.x = newX;
+                ninjaman.y = newY;
+            }
+
+            if (world[ninjaman.y][ninjaman.x] === 2) {
+                ninjaman.score++; // sushi vale 1 punto
+                world[ninjaman.y][ninjaman.x] = 0;
+            } else if (world[ninjaman.y][ninjaman.x] === 3) {
+                ninjaman.score += 5; // onigiri vale 5 puntos
+                world[ninjaman.y][ninjaman.x] = 0;
+                ninjaman.power = true; // Ninjaman ahora puede comer fantasmas
+
+                // Cambiar la clase de los fantasmas a "scaredy"
+                for (var i = 0; i < ghosts.length; i++) {
+                    ghosts[i].type = "scaredy";
+                }
+                setTimeout(function () {
+                    ninjaman.power = false; // Después de cierta cantidad de segundos, Ninjaman pierde el poder de comer fantasmas
+                    // Cambiar la clase de los fantasmas de nuevo a su clase original
+                    for (var i = 0; i < ghosts.length; i++) {
+                        ghosts[i].type = ghosts[i].originalType;
+                    }
+                }, 8000);
+            }
+
+            moveGhosts();
+            drawWorld();
+            checkWin(); // Llama a la función checkWin después de cada movimiento
+        }
+
+        // Creamos eventos de teclado para que nuestro ninja se mueva
+        document.onkeydown = function (e) {
+            if (e.keyCode === 37)
+                moveNinjaman("left"); // tecla de flecha izquierda
+            else if (e.keyCode === 38)
+                moveNinjaman("up"); // tecla de flecha arriba
+            else if (e.keyCode === 39)
+                moveNinjaman("right"); // tecla de flecha derecha
+            else if (e.keyCode === 40) moveNinjaman("down"); // tecla de flecha abajo
+        };
+        drawWorld();
+    </script>
+</html>
